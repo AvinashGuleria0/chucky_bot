@@ -35,6 +35,12 @@ export function ChatMessage({ sender, content, isChangeRequest }: ChatMessagePro
   let parsedContent: any = null
   if (isChangeRequest) {
     try {
+      // Ensure content is a string
+      if (typeof content !== 'string') {
+        console.error('Content is not a string:', typeof content)
+        return <ExplanationCard content={String(content)} />
+      }
+
       // Try to extract JSON from various formats
       let jsonStr = content
       

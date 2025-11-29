@@ -152,10 +152,18 @@ export default function ProjectPage() {
         const data = await res.json()
         setConversationId(data.conversationId)
         
+        // Extract content properly - handle both string and object responses
+        let messageContent = 'No response'
+        if (typeof data.message === 'string') {
+          messageContent = data.message
+        } else if (data.message?.content) {
+          messageContent = data.message.content
+        }
+        
         setMessages(prev => [...prev, {
           id: data.messageId || Date.now().toString(),
           sender: 'AI',
-          content: data.message || data.message?.content || 'No response',
+          content: messageContent,
           createdAt: new Date().toISOString()
         }])
       } else {
