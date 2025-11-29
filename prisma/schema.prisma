@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  authProvider  AuthProvider @default(GOOGLE)
+  passwordHash  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  projects      Project[]
+  conversations Conversation[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+enum AuthProvider {
+  GOOGLE
+  LOCAL
+}
+
+enum LLMProvider {
+  GEMINI
+  GPT
+  OLLAMA
+}
+
+model Project {
+  id          String      @id @default(uuid())
+  name        String
+  description String?
+  llmProvider LLMProvider @default(GEMINI)
+  createdById String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  createdBy     User            @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  files         File[]
+  fileChunks    FileChunk[]
+  embeddings    ChunkEmbedding[]
+  conversations Conversation[]
+
+  @@map("projects")
+}
+
+model File {
+  id        String   @id @default(uuid())
+  projectId String
+  name      String
+  path      String
+  language  String?
+  size      Int
+  content   String
+  createdAt DateTime @default(now())
+
+  project Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  chunks  FileChunk[]
+
+  @@map("files")
+}
+
+model FileChunk {
+  id         String   @id @default(uuid())
+  fileId     String
+  projectId  String
+  index      Int
+  content    String
+  tokenCount Int
+  createdAt  DateTime @default(now())
+
+  file      File             @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  project   Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  embedding ChunkEmbedding?
+
+  @@map("file_chunks")
+}
+
+model ChunkEmbedding {
+  id          String                     @id @default(uuid())
+  fileChunkId String                     @unique
+  projectId   String
+  embedding   Unsupported("vector(768)")
+  createdAt   DateTime                   @default(now())
+
+  fileChunk FileChunk @relation(fields: [fileChunkId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("chunk_embeddings")
+}
+
+model Conversation {
+  id        String   @id @default(uuid())
+  projectId String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@map("conversations")
+}
+
+enum MessageSender {
+  USER
+  AI
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  sender         MessageSender
+  content        String
+  rawContext     Json?
+  createdAt      DateTime @default(now())
+
+  conversation  Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  impactReport  ImpactReport?
+
+  @@map("messages")
+}
+
+enum EffortBucket {
+  XS
+  S
+  M
+  L
+  XL
+}
+
+model ImpactReport {
+  id            String       @id @default(uuid())
+  messageId     String       @unique
+  effortBucket  EffortBucket
+  timeRange     String
+  edgeCases     Json
+  challenges    Json
+  affectedFiles Json
+  createdAt     DateTime     @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("impact_reports")
+}
