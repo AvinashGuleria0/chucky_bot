@@ -10,16 +10,19 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
   Upload, MessageSquare, ArrowLeft, Send, 
-  Loader2, FileCode, Sparkles, FolderOpen, Zap, History, Maximize2, Minimize2
+  Loader2, FileCode, Sparkles, FolderOpen, Zap, History, Maximize2, Minimize2, Share2, Copy, Check
 } from 'lucide-react'
 import { ChatMessage } from '@/components/chat-message'
 import { ThemeToggle } from '@/components/theme-toggle'
 import { ChatHistorySidebar } from '@/components/chat-history-sidebar'
+import { ModelLoadingProgress } from '@/components/model-loading-progress'
 
 interface ProjectData {
   id: string
   name: string
   description: string | null
+  shareId?: string | null
+  isPublic?: boolean
   files: Array<{
     id: string
     name: string
@@ -55,6 +58,10 @@ export default function ProjectPage() {
   const [activeTab, setActiveTab] = useState<'files' | 'chat'>('files')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [shareLink, setShareLink] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [generatingShare, setGeneratingShare] = useState(false)
+  const [modelReady, setModelReady] = useState(false)
 
   useEffect(() => {
     fetchProject()
@@ -70,6 +77,9 @@ export default function ProjectPage() {
       if (res.ok) {
         const data = await res.json()
         setProject(data)
+        if (data.shareId) {
+          setShareLink(`${window.location.origin}/share/${data.shareId}`)
+        }
       } else {
         toast.error('Project not found')
         router.push('/projects')
@@ -152,10 +162,15 @@ export default function ProjectPage() {
         const data = await res.json()
         setConversationId(data.conversationId)
         
+        // Handle different response formats
+        const messageContent = isChangeRequest 
+          ? (typeof data.message.content === 'object' ? data.message.content : data.message.content)
+          : (data.message || 'No response')
+        
         setMessages(prev => [...prev, {
           id: data.messageId || Date.now().toString(),
           sender: 'AI',
-          content: data.message || data.message?.content || 'No response',
+          content: messageContent,
           createdAt: new Date().toISOString()
         }])
       } else {
@@ -197,6 +212,34 @@ export default function ProjectPage() {
   const handleNewConversation = () => {
     setMessages([])
     setConversationId(null)
+  }
+
+  const generateShareLink = async () => {
+    setGeneratingShare(true)
+    try {
+      const res = await fetch(`/api/projects/${projectId}/share`, {
+        method: 'POST'
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const link = `${window.location.origin}/share/${data.shareId}`
+        setShareLink(link)
+        toast.success('Share link generated!')
+      } else {
+        toast.error('Failed to generate share link')
+      }
+    } catch (error) {
+      toast.error('An error occurred')
+    } finally {
+      setGeneratingShare(false)
+    }
+  }
+
+  const copyShareLink = () => {
+    navigator.clipboard.writeText(shareLink)
+    setCopied(true)
+    toast.success('Link copied to clipboard!')
+    setTimeout(() => setCopied(false), 2000)
   }
 
   if (loading) {
@@ -247,6 +290,28 @@ export default function ProjectPage() {
           <Badge className="bg-primary/20 text-primary border-primary/30 hover:bg-primary/30">
             {project.files.length} files
           </Badge>
+          {shareLink ? (
+            <Button 
+              onClick={copyShareLink}
+              size="sm" 
+              variant="outline"
+              className="gap-2"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied!' : 'Copy Link'}
+            </Button>
+          ) : (
+            <Button 
+              onClick={generateShareLink}
+              disabled={generatingShare}
+              size="sm" 
+              variant="outline"
+              className="gap-2"
+            >
+              {generatingShare ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+              Share
+            </Button>
+          )}
           <ThemeToggle />
         </div>
       </header>
@@ -566,6 +631,8 @@ export default function ProjectPage() {
           </motion.div>
         )}
       </main>
+
+      <ModelLoadingProgress onComplete={() => setModelReady(true)} />
     </div>
   )
 }

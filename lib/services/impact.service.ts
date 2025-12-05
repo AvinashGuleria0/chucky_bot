@@ -27,14 +27,12 @@ export class ImpactService {
         }
       }
 
-      // Store the JSON string for proper parsing on frontend
-      const jsonContent = JSON.stringify(analysis, null, 2)
-      
+      // Store the parsed analysis object directly (not stringified)
       const message = await prisma.message.create({
         data: {
           conversationId,
           sender: 'AI',
-          content: jsonContent,
+          content: JSON.stringify(analysis),
           rawContext: analysis
         }
       })
@@ -53,7 +51,7 @@ export class ImpactService {
       return {
         message: {
           id: message.id,
-          content: jsonContent
+          content: analysis  // Return the parsed object, not stringified
         },
         analysis: {
           effortBucket: analysis.effortBucket,

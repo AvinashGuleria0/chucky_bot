@@ -1,21 +1,36 @@
 import { pipeline, env } from '@xenova/transformers'
 
-// Disable local model cache to avoid permission issues
-env.cacheDir = './.cache'
+// Configure for Vercel serverless
+env.cacheDir = process.env.MODEL_CACHE_DIR || '/tmp/.cache'
+env.allowLocalModels = false
 
 export class EmbeddingService {
   private model: any = null
   private modelPromise: Promise<any> | null = null
+  private loadingProgress: number = 0
+
+  getLoadingProgress(): number {
+    return this.loadingProgress
+  }
 
   private async getModel() {
     if (this.model) return this.model
     
     if (!this.modelPromise) {
       console.log('Loading BGE embedding model...')
-      this.modelPromise = pipeline('feature-extraction', 'Xenova/bge-base-en-v1.5')
+      this.loadingProgress = 10
+      
+      this.modelPromise = pipeline('feature-extraction', 'Xenova/bge-base-en-v1.5', {
+        progress_callback: (progress: any) => {
+          if (progress.status === 'progress') {
+            this.loadingProgress = Math.min(90, 10 + (progress.progress || 0) * 80)
+          }
+        }
+      })
     }
     
     this.model = await this.modelPromise
+    this.loadingProgress = 100
     console.log('BGE model loaded successfully')
     return this.model
   }
@@ -24,13 +39,10 @@ export class EmbeddingService {
     try {
       const extractor = await this.getModel()
       const output = await extractor(text, { pooling: 'mean', normalize: true })
-      
-      // Convert to regular array and ensure 768 dimensions
       const embedding = Array.from(output.data) as number[]
       return this.padOrTruncate(embedding, 768)
     } catch (error: any) {
       console.error('Error creating embedding:', error)
-      console.warn('Falling back to simple embedding.')
       return this.textToEmbedding(text)
     }
   }

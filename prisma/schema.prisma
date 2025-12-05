@@ -72,17 +72,12 @@ enum AuthProvider {
   LOCAL
 }
 
-enum LLMProvider {
-  GEMINI
-  GPT
-  OLLAMA
-}
-
 model Project {
   id          String      @id @default(uuid())
   name        String
   description String?
-  llmProvider LLMProvider @default(GEMINI)
+  shareId     String?     @unique
+  isPublic    Boolean     @default(false)
   createdById String
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
