@@ -7,15 +7,24 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 export class RAGService {
   async query(userQuery: string, projectId: string, isChangeRequest: boolean = false): Promise<string> {
     try {
-      const similarChunks = await vectorService.searchByQuery(userQuery, projectId, 8)
+      const similarChunks = await vectorService.searchByQuery(userQuery, projectId, 5)
       const context = chunkingService.mergeChunksForContext(similarChunks)
-      const prompt = isChangeRequest ? this.buildChangeRequestPrompt(userQuery, context) : this.buildExplanationPrompt(userQuery, context)
+      
+      // Truncate context if too long (max ~8000 chars to leave room for prompt and response)
+      const maxContextLength = 8000
+      const truncatedContext = context.length > maxContextLength 
+        ? context.substring(0, maxContextLength) + '\n... [truncated]'
+        : context
+      
+      const prompt = isChangeRequest 
+        ? this.buildChangeRequestPrompt(userQuery, truncatedContext) 
+        : this.buildExplanationPrompt(userQuery, truncatedContext)
       
       const completion = await groq.chat.completions.create({
         messages: [{ role: 'user', content: prompt }],
-        model: 'llama-3.3-70b-versatile',
+        model: 'llama-3.1-8b-instant',
         temperature: 0.7,
-        max_tokens: 3000
+        max_tokens: 2000
       })
 
       return completion.choices[0]?.message?.content || 'No response generated'
@@ -48,11 +57,25 @@ IMPORTANT: Analyze the question complexity and user intent:
 **For COMPLEX/TECHNICAL questions** (like "explain the authentication flow", "how does the system architecture work", "explain the entire authentication process"):
 - Use the structured format below with ## headings
 - Include technical details, file paths, and implementation specifics
+- **ALWAYS include architecture diagrams using mermaid syntax when explaining flows or system architecture**
 
 Structure for COMPLEX responses:
 
 ## Overview
 Provide a clear 1-2 sentence summary using simple language. Use **bold** for key concepts.
+
+## Architecture Diagram
+Use mermaid to visualize the flow or architecture:
+
+\`\`\`mermaid
+graph TD
+    A[User] -->|Action| B[Component]
+    B -->|Request| C[API]
+    C -->|Query| D[Database]
+    D -->|Response| C
+    C -->|Result| B
+    B -->|Display| A
+\`\`\`
 
 ## How It Works
 Explain using bullet points:
@@ -60,13 +83,6 @@ Explain using bullet points:
 - **Then**: Next action in the flow
 - **Next**: Following step
 - **Finally**: End result
-
-After the bullets, add the visual flow:
-
-**Flow:**
-\`\`\`
-User Action → Component → Service → Database → Response
-\`\`\`
 
 ## Real-World Analogy  
 Compare to something familiar:
@@ -82,8 +98,7 @@ This is like a **[everyday concept]** where:
 
 Rules:
 - BE SMART: Simple question = Simple answer (1-3 sentences max, no technical details)
-- Complex question = Detailed structured response
-- NO emojis in headings
+- Complex question = Detailed structured response with mermaid diagrams
 - Use **bold** for emphasis
 - Use \`code\` only when necessary
 - Always prioritize clarity and brevity for simple questions`

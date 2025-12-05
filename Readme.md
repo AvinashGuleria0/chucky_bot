@@ -23,8 +23,8 @@ All answers are grounded in project-specific code using **RAG**.
 
 | Component | Behavior |
 | :---- | ----- |
-| LLM Provider | **Per project** — Gemini default, pluggable design supports GPT/Ollama/other later |
-| Embeddings Provider | **Single** → Gemini embeddings only |
+| LLM Provider | **Single** — Groq API with llama-3.1-8b-instant |
+| Embeddings Provider | **Single** → Local BGE model via @xenova/transformers |
 | Vector Store | pgvector inside PostgreSQL |
 | Storage | PostgreSQL \+ Prisma ORM |
 | Processing | RAG pipeline orchestrated in backend |
@@ -61,12 +61,12 @@ Modules:
 | Module | Responsibility |
 | ----- | ----- |
 | Auth Service | OAuth \+ Credentials login |
-| Project Service | Create/manage projects, attach model provider |
+| Project Service | Create/manage projects |
 | File Upload Service | Process files & zips |
 | Code Chunker | Split files into manageable token chunks |
-| Embeddings Service | Call Gemini embedding API |
+| Embeddings Service | Generate embeddings using local BGE model |
 | Vector DB Service | Insert/query pgvector embeddings |
-| Chat/RAG Orchestrator | Retrieve relevant context, prompt Gemini |
+| Chat/RAG Orchestrator | Retrieve relevant context, prompt Groq API |
 | Explanation Formatter | Build structured output |
 | Change Impact Analyzer | Detect impacted parts, risks & edge cases |
 | Effort Estimation Engine | Produce XS/S/M/L/XL \+ timeline ranges |
@@ -77,9 +77,8 @@ Modules:
 
 ### **4.1 Project Initialization**
 
-User → Create Project → Select preferred LLM (default Gemini)  
-Project DB row created  
-LLM provider stored
+User → Create Project  
+Project DB row created
 
 ---
 
@@ -91,11 +90,9 @@ Backend extracts files
 ↓  
 Code Chunker splits into 200–400 token segments  
 ↓  
-Each chunk → Gemini Embeddings API  
+Each chunk → Local BGE embedding model  
 ↓  
 Store embeddings in pgvector \+ metadata in DB
-
-**Note:** Only Gemini embeddings used regardless of LLM provider.
 
 ---
 
@@ -103,9 +100,7 @@ Store embeddings in pgvector \+ metadata in DB
 
 Client asks question on project  
 ↓  
-Backend identifies project's LLM provider  
-↓  
-Embed query via Gemini embeddings  
+Embed query via local BGE model  
 ↓  
 Vector similarity search on embeddings (project\_id filtered)  
 ↓  
@@ -116,7 +111,7 @@ Backend builds structured prompt:
   \- Include chunks \+ paths  
   \- Ask for diagrams, analogies, workflows  
 ↓  
-Send to LLM (Gemini by default)  
+Send to Groq API (llama-3.1-8b-instant)  
 ↓  
 Format output and store response  
 ↓  
@@ -168,7 +163,6 @@ Project {
   id: UUID  
   name: String  
   description: String?  
-  llmProvider: ENUM(GEMINI, GPT, OLLAMA) // per project  
   createdBy: User  
   createdAt: DateTime  
 }
@@ -202,7 +196,7 @@ ChunkEmbedding {
   id: UUID  
   fileChunkId: UUID  
   projectId: UUID  
-  embedding: VECTOR(1536)  
+  embedding: VECTOR(768)  
   createdAt: DateTime  
 }
 

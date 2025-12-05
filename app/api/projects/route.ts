@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { name, description, llmProvider } = body
+    const { name, description } = body
 
     if (!name) {
       return NextResponse.json({ error: 'Project name is required' }, { status: 400 })
@@ -35,8 +35,7 @@ export async function POST(req: NextRequest) {
     const project = await projectService.createProject(
       name,
       description,
-      session.user.id,
-      llmProvider
+      session.user.id
     )
 
     return NextResponse.json(project, { status: 201 })

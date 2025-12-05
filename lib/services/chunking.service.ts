@@ -1,4 +1,4 @@
-import { FileChunk } from '@/types'
+import { ProcessedChunk } from '@/types'
 
 const CHARS_PER_TOKEN = 4 // Approximate
 const MIN_CHUNK_TOKENS = 200
@@ -33,8 +33,8 @@ export class ChunkingService {
     return position
   }
 
-  splitIntoChunks(content: string, filePath: string, language?: string): FileChunk[] {
-    const chunks: FileChunk[] = []
+  splitIntoChunks(content: string, filePath: string, language?: string): ProcessedChunk[] {
+    const chunks: ProcessedChunk[] = []
     const lines = content.split('\n')
     
     let currentChunk: string[] = []

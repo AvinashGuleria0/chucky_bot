@@ -1,9 +1,11 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Sparkles, User, Lightbulb, AlertTriangle, FileCode, Clock, ArrowRight, CheckCircle2, XCircle, Code2, Wrench, Zap } from 'lucide-react'
+import { Sparkles, User, ArrowRight } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { useEffect, useRef } from 'react'
+import mermaid from 'mermaid'
 
 interface ChatMessageProps {
   sender: 'USER' | 'AI'
@@ -56,6 +58,11 @@ export function ChatMessage({ sender, content, isChangeRequest }: ChatMessagePro
         if (parsedContent && (parsedContent.overview || parsedContent.effortBucket)) {
           return <ImpactAnalysisCard data={parsedContent} />
         }
+      }
+      
+      // Validate it has the expected structure
+      if (parsedContent && (parsedContent.overview || parsedContent.effortBucket)) {
+        return <ImpactAnalysisCard data={parsedContent} />
       }
     } catch (e) {
       console.error('Failed to parse impact analysis:', e)
@@ -222,8 +229,21 @@ function ImpactAnalysisCard({ data }: { data: any }) {
 }
 
 function ExplanationCard({ content }: { content: string }) {
-  // Parse content into sections by ## headings
-  const sections = parseContentIntoSections(content)
+  // Convert content to string if it's an object
+  const contentString = typeof content === 'string' ? content : JSON.stringify(content, null, 2)
+  const sections = parseContentIntoSections(contentString)
+  const mermaidRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (mermaidRef.current) {
+      mermaid.initialize({ 
+        startOnLoad: true, 
+        theme: 'default',
+        securityLevel: 'loose' 
+      })
+      mermaid.contentLoaded()
+    }
+  }, [content])
 
   return (
     <motion.div
@@ -236,7 +256,7 @@ function ExplanationCard({ content }: { content: string }) {
         <Sparkles className="w-4 h-4 text-white" />
       </div>
 
-      <div className="flex-1 max-w-[92%] space-y-3">
+      <div ref={mermaidRef} className="flex-1 max-w-[92%] space-y-3">
         {sections.map((section, index) => (
           <SectionBlock key={index} section={section} delay={index * 0.08} />
         ))}
@@ -311,7 +331,6 @@ function parseContentIntoSections(content: string): Section[] {
 }
 
 function SectionBlock({ section, delay }: { section: Section; delay: number }) {
-  // Pink-themed colors for all sections
   const sectionColors: Record<string, { bg: string; border: string; title: string }> = {
     'Overview': { bg: 'bg-pink-50/60 dark:bg-card/60', border: 'border-pink-300/40 dark:border-pink-500/20', title: 'text-pink-700 dark:text-pink-400' },
     'How It Works': { bg: 'bg-rose-50/60 dark:bg-card/60', border: 'border-rose-300/40 dark:border-rose-500/20', title: 'text-rose-700 dark:text-rose-400' },
@@ -321,6 +340,7 @@ function SectionBlock({ section, delay }: { section: Section; delay: number }) {
   }
 
   const colors = sectionColors[section.title] || sectionColors['Overview']
+  const hasMermaid = section.content.includes('```mermaid')
 
   return (
     <motion.div
@@ -333,28 +353,47 @@ function SectionBlock({ section, delay }: { section: Section; delay: number }) {
         {section.title}
       </h3>
       
-      <div className="prose prose-sm max-w-none dark:prose-invert
+      <div className={`prose prose-sm max-w-none dark:prose-invert
         prose-p:text-gray-700 dark:prose-p:text-foreground/85 prose-p:leading-relaxed prose-p:my-2 prose-p:text-[14px]
         prose-strong:text-gray-900 dark:prose-strong:text-foreground prose-strong:font-bold
-        prose-em:text-gray-600 dark:prose-em:text-foreground/75 prose-em:italic
         prose-code:text-pink-600 dark:prose-code:text-pink-400 prose-code:bg-pink-100/50 dark:prose-code:bg-pink-900/20 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded 
         prose-code:before:content-[''] prose-code:after:content-[''] prose-code:font-mono prose-code:text-[13px] prose-code:font-medium
         prose-pre:bg-gray-900 dark:prose-pre:bg-gray-950 prose-pre:border prose-pre:border-gray-700 dark:prose-pre:border-gray-800 prose-pre:rounded-lg prose-pre:my-3 prose-pre:p-3 prose-pre:text-[13px]
-        prose-pre:code:bg-transparent prose-pre:code:p-0 prose-pre:code:text-gray-100 dark:prose-pre:code:text-foreground/80
-        prose-li:text-gray-700 dark:prose-li:text-foreground/85 prose-li:my-1.5 prose-li:leading-relaxed prose-li:text-[14px] prose-li:list-item
-        prose-li>strong:font-bold prose-li>strong:text-gray-900 dark:prose-li>strong:text-foreground
-        prose-ul:my-3 prose-ol:my-3 prose-ul:list-disc prose-ol:list-decimal prose-ul:pl-6 prose-ol:pl-6 prose-ul:space-y-1 prose-ol:space-y-1
-        prose-ul:marker:text-pink-500 dark:prose-ul:marker:text-pink-400 prose-ol:marker:text-pink-500 dark:prose-ol:marker:text-pink-400 prose-ol:marker:font-semibold
-        prose-ul>li:ml-0 prose-ol>li:ml-0 prose-ul>li:pl-2 prose-ol>li:pl-2
-        prose-blockquote:border-l-3 prose-blockquote:border-l-pink-400 dark:prose-blockquote:border-l-pink-500 prose-blockquote:bg-pink-50/50 dark:prose-blockquote:bg-pink-900/10 
-        prose-blockquote:py-2 prose-blockquote:px-3 prose-blockquote:rounded-r-lg prose-blockquote:text-gray-700 dark:prose-blockquote:text-foreground/80 prose-blockquote:italic prose-blockquote:text-[14px]
-        prose-a:text-pink-600 dark:prose-a:text-pink-400 prose-a:no-underline prose-a:font-medium hover:prose-a:underline
-        prose-hr:border-gray-300 dark:prose-hr:border-border prose-hr:my-3
-        prose-h3:text-sm prose-h3:font-semibold prose-h3:text-gray-800 dark:prose-h3:text-foreground prose-h3:mt-3 prose-h3:mb-2
-        prose-h4:text-sm prose-h4:font-semibold prose-h4:text-gray-700 dark:prose-h4:text-foreground/90 prose-h4:mt-2 prose-h4:mb-1.5
-        [&_ul]:list-disc [&_ol]:list-decimal [&_ul]:block [&_ol]:block
-        [&_li]:block [&_li]:list-item [&_li_strong]:font-bold [&_li_strong]:text-gray-900 dark:[&_li_strong]:text-foreground">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        prose-pre:code:bg-transparent prose-pre:code:p-0 prose-pre:code:text-gray-100
+        prose-li:text-gray-700 dark:prose-li:text-foreground/85 prose-li:my-1.5 prose-li:leading-relaxed prose-li:text-[14px]
+        prose-ul:my-3 prose-ul:list-disc prose-ul:pl-6
+        prose-ul:marker:text-pink-500 dark:prose-ul:marker:text-pink-400
+        prose-a:text-pink-600 dark:prose-a:text-pink-400 prose-a:no-underline hover:prose-a:underline
+        ${hasMermaid ? '[&_.mermaid]:bg-white [&_.mermaid]:dark:bg-gray-900 [&_.mermaid]:p-4 [&_.mermaid]:rounded-lg [&_.mermaid]:my-3' : ''}`}>
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code(props) {
+              const { node, className, children, ...rest } = props
+              const match = /language-(\w+)/.exec(className || '')
+              const lang = match ? match[1] : ''
+              const isInline = !className
+              
+              if (!isInline && lang === 'mermaid') {
+                return (
+                  <div className="mermaid my-4">
+                    {String(children).replace(/\n$/, '')}
+                  </div>
+                )
+              }
+              
+              return isInline ? (
+                <code className={className} {...rest}>
+                  {children}
+                </code>
+              ) : (
+                <pre className={className}>
+                  <code {...rest}>{children}</code>
+                </pre>
+              )
+            }
+          }}
+        >
           {section.content}
         </ReactMarkdown>
       </div>

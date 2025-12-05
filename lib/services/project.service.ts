@@ -1,18 +1,15 @@
 import { prisma } from '@/lib/db/prisma'
-import { LLMProvider } from '@prisma/client'
 
 export class ProjectService {
   async createProject(
     name: string,
     description: string | undefined,
-    userId: string,
-    llmProvider: LLMProvider = 'GEMINI'
+    userId: string
   ) {
     return await prisma.project.create({
       data: {
         name,
         description,
-        llmProvider,
         createdById: userId
       }
     })
@@ -24,7 +21,13 @@ export class ProjectService {
         id: projectId,
         createdById: userId
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        shareId: true,
+        isPublic: true,
+        createdAt: true,
         files: {
           select: {
             id: true,
@@ -61,7 +64,7 @@ export class ProjectService {
   async updateProject(
     projectId: string,
     userId: string,
-    data: { name?: string; description?: string; llmProvider?: LLMProvider }
+    data: { name?: string; description?: string }
   ) {
     return await prisma.project.update({
       where: {

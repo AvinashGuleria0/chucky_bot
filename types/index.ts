@@ -2,23 +2,16 @@ export interface FileChunk {
   id: string
   content: string
   filePath: string
+  similarity: number
+}
+
+export interface ProcessedChunk {
+  id: string
+  content: string
+  filePath: string
   startLine: number
   endLine: number
   tokenCount: number
-}
-
-export interface EmbeddingResult {
-  chunkId: string
-  embedding: number[]
-}
-
-export interface RAGContext {
-  chunks: Array<{
-    content: string
-    filePath: string
-    similarity: number
-  }>
-  query: string
 }
 
 export interface ChatMessage {
@@ -35,16 +28,4 @@ export interface ImpactAnalysis {
   edgeCases: string[]
   challenges: string[]
   recommendations: string[]
-}
-
-export interface ProjectUpload {
-  files: File[]
-  projectId: string
-}
-
-export interface ChunkWithEmbedding {
-  id: string
-  content: string
-  filePath: string
-  embedding?: number[]
 }
