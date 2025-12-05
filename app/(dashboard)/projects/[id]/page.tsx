@@ -162,10 +162,13 @@ export default function ProjectPage() {
         const data = await res.json()
         setConversationId(data.conversationId)
         
-        // Handle different response formats
-        const messageContent = isChangeRequest 
-          ? (typeof data.message.content === 'object' ? data.message.content : data.message.content)
-          : (data.message || 'No response')
+        // Extract content properly - handle both string and object responses
+        let messageContent = 'No response'
+        if (typeof data.message === 'string') {
+          messageContent = data.message
+        } else if (data.message?.content) {
+          messageContent = data.message.content
+        }
         
         setMessages(prev => [...prev, {
           id: data.messageId || Date.now().toString(),

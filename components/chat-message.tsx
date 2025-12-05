@@ -37,22 +37,26 @@ export function ChatMessage({ sender, content, isChangeRequest }: ChatMessagePro
   let parsedContent: any = null
   if (isChangeRequest) {
     try {
-      // Check if content is already an object
-      if (typeof content === 'object' && content !== null) {
-        parsedContent = content
-      } else if (typeof content === 'string') {
-        // Try to parse the string as JSON directly first
-        try {
-          parsedContent = JSON.parse(content)
-        } catch {
-          // If that fails, try to extract JSON from markdown code blocks
-          let jsonStr = content
-          jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '')
-          
-          const jsonMatch = jsonStr.match(/{[\s\S]*}/)
-          if (jsonMatch) {
-            parsedContent = JSON.parse(jsonMatch[0])
-          }
+      // Ensure content is a string
+      if (typeof content !== 'string') {
+        console.error('Content is not a string:', typeof content)
+        return <ExplanationCard content={String(content)} />
+      }
+
+      // Try to extract JSON from various formats
+      let jsonStr = content
+      
+      // Remove markdown code blocks
+      jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '')
+      
+      // Try to find JSON object
+      const jsonMatch = jsonStr.match(/{[\s\S]*}/)
+      if (jsonMatch) {
+        parsedContent = JSON.parse(jsonMatch[0])
+        
+        // Validate it has the expected structure
+        if (parsedContent && (parsedContent.overview || parsedContent.effortBucket)) {
+          return <ImpactAnalysisCard data={parsedContent} />
         }
       }
       
